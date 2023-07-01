@@ -25,10 +25,10 @@ meta_data = {
 }
 
 class Cashier(object):
-    _create_sql = 'CREATE TABLE IF NOT EXISTS bucket (key TEXT PRIMARY KEY, val BLOB, exp FLOAT)'
+    _create_sql = 'CREATE TABLE IF NOT EXISTS bucket (key TEXT PRIMARY KEY, func TEXT, val BLOB, exp FLOAT)'
     _get_sql = 'SELECT val, exp FROM bucket WHERE key = ?'
     _del_sql = 'DELETE FROM bucket WHERE key = ?'
-    _set_sql = 'INSERT OR REPLACE INTO bucket (key, val, exp) VALUES (?, ?, ?)'
+    _set_sql = 'INSERT OR REPLACE INTO bucket (key, func, val, exp) VALUES (?, ?, ?, ?)'
     _count_sql = 'SELECT COUNT(*) FROM bucket'
     _oldest = 'select key FROM bucket ORDER BY exp ASC LIMIT 1'
 
@@ -97,7 +97,7 @@ class Cashier(object):
         with self._get_conn(key) as conn:
             conn.execute(self._del_sql, (key,))
 
-    def set(self, key, value):
+    def set(self, key, func, value):
         """
         set new key value to the cache
         If cache default length reached,
@@ -112,7 +112,7 @@ class Cashier(object):
                 old_key = next(conn.execute(self._oldest))
                 if old_key:
                     self.delete(old_key[0])
-            conn.execute(self._set_sql, (key, value, time() + self.default_timeout))
+            conn.execute(self._set_sql, (key, func, value, time() + self.default_timeout))
 
 
 def cache(cache_file=".cache", cache_time=84600, cache_length=10000, retry_if_blank=False):
@@ -144,7 +144,7 @@ def cache(cache_file=".cache", cache_time=84600, cache_length=10000, retry_if_bl
                 elif info:
                     return info
             res = fn(*args, **kwargs)
-            c.set(md5_key, dumps(res))
+            c.set(md5_key, fn.__name__, dumps(res))
             return res
         return wrapped
     return decorator
